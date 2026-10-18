@@ -1,0 +1,39 @@
+{% extends "planner/base.html" %}
+{% block title %}Google Calendar · Syllabus Planner{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'dashboard' %}">← Courses</a>
+<section class="settings-page">
+  <p class="eyebrow">CALENDAR INTEGRATION</p>
+  <h1>Google Calendar</h1>
+  <p class="muted">Connect a Google account to preview calendar events and apply approved changes.</p>
+  <div class="panel settings-panel">
+    {% if connection %}
+      <div class="connection-state"><span class="connection-icon">✓</span><div><strong>Account connected</strong><span>Calendar: {{ connection.calendar_id }}</span></div><span class="status-pill status-ready"><i></i>Connected</span></div>
+      <form method="post" class="stack-form settings-calendar-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="button button-outline">Save calendar</button>
+      </form>
+      <form method="post" action="{% url 'google_disconnect' %}" class="disconnect-form">{% csrf_token %}<button class="text-button danger-text" type="submit">Disconnect account</button></form>
+    {% else %}
+      <div class="connection-state"><span class="connection-icon muted-icon">↗</span><div><strong>Not connected</strong><span>No events can be read or written yet.</span></div><span class="status-pill status-draft"><i></i>Not connected</span></div>
+      {% if oauth_configured %}
+        <a class="button button-green" href="{% url 'google_connect' %}">Connect Google Calendar</a>
+      {% else %}
+        <div class="setup-note"><strong>Set up OAuth credentials first</strong><p>Enable the Google Calendar API, create a local OAuth client, and add <code>GOOGLE_OAUTH_CLIENT_ID</code> and <code>GOOGLE_OAUTH_CLIENT_SECRET</code> to <code>.env</code>. See the setup guide in README.</p></div>
+        <button class="button button-green" type="button" disabled>Connect Google Calendar</button>
+      {% endif %}
+    {% endif %}
+  </div>
+  <div class="panel safety-panel">
+    <div class="panel-heading"><div><p class="eyebrow">SAFE BY DEFAULT</p><h2>What this integration can do</h2></div><span class="shield">✓</span></div>
+    <ul class="safety-list">
+      <li><strong>Read events</strong><span>Find overlaps and app-owned events in the selected calendar.</span></li>
+      <li><strong>Add reviewed events</strong><span>Only after you approve the event and confirm a full sync preview.</span></li>
+      <li><strong>Update or remove app-owned events</strong><span>Other events are never edited or deleted. Cancellations match only this app’s event type and date.</span></li>
+      <li><strong>No hidden sync</strong><span>Connecting or viewing a preview does not make calendar changes.</span></li>
+    </ul>
+    <p class="small muted">OAuth tokens are stored in the local SQLite database, which is excluded from Git. Do not expose this development server to the public internet.</p>
+  </div>
+</section>
+{% endblock %}

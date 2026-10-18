@@ -1,0 +1,19 @@
+{% extends "planner/base.html" %}
+{% block title %}Delete {{ course.name }} · Syllabus Planner{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'course_detail' course.id %}">← Cancel and return</a>
+<section class="delete-page panel">
+  <p class="eyebrow">LOCAL DATA DELETION</p>
+  <h1>Delete {{ course.name }}?</h1>
+  <p>This permanently removes the course, saved syllabus text, event drafts and local sync previews from this app. It does not affect events in Google Calendar.</p>
+  {% if has_managed_events %}
+    <p class="muted small">App-owned Google Calendar events must be removed with an approved cancellation preview before deleting the course.</p>
+  {% endif %}
+  <form method="post" class="stack-form">
+    {% csrf_token %}
+    <label for="confirm-name">Type <strong>{{ course.name }}</strong> to confirm</label>
+    <input id="confirm-name" name="confirm" required autocomplete="off">
+    <button class="button button-danger" type="submit">Delete local course data</button>
+  </form>
+</section>
+{% endblock %}

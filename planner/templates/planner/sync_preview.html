@@ -1,0 +1,58 @@
+{% extends "planner/base.html" %}
+{% block title %}Review calendar changes · Syllabus Planner{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'course_detail' preview.course.id %}">← {{ preview.course.name }}</a>
+<section class="preview-heading">
+  <p class="eyebrow">GOOGLE CALENDAR · FINAL REVIEW</p>
+  <h1>Review every change.</h1>
+  <p class="muted">Nothing has been written yet. Course: <strong>{{ preview.course.name }}</strong>. Target calendar ID: <code>{{ preview.calendar_id }}</code>.</p>
+  <div class="preview-status status-{{ preview.status }}">{{ preview.get_status_display }}</div>
+</section>
+{% if preview.status == 'pending' %}
+  {% if preview.warnings %}
+    <div class="warning-panel"><div class="warning-symbol">!</div><div><h2>Potential overlaps</h2><p>These are warnings, not automatic edits. Review them before continuing.</p><ul>{% for warning in preview.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></div></div>
+  {% endif %}
+  <section class="preview-actions">
+    <h2>Proposed changes <span class="count-badge">{{ preview.actions|length }}</span></h2>
+    {% for action in preview.actions %}
+      <article class="change-card change-{{ action.operation }}">
+        <span class="change-icon">{% if action.operation == 'add' %}+{% elif action.operation == 'update' %}↻{% elif action.operation == 'remove' %}−{% else %}i{% endif %}</span>
+        <div class="change-copy">
+        <span class="change-type">{% if action.operation == 'add' %}ADD EVENT{% elif action.operation == 'update' %}UPDATE APP-OWNED EVENT{% elif action.operation == 'remove' %}REMOVE APP-OWNED EVENT{% elif action.operation == 'suppressed' %}SUPPRESSED BY CANCELLATION{% else %}NO MATCH{% endif %}</span>
+          <h3>{{ action.title }}</h3>
+          {% if action.previous %}
+            <p class="previous-value"><strong>Currently:</strong> {{ action.previous.summary|default:action.title }}
+              {% if action.previous.start.date %} · {{ action.previous.start.date }}{% elif action.previous.start.dateTime %} · {{ action.previous.start.dateTime }}{% endif %}
+              {% if action.previous.end.date %} – {{ action.previous.end.date }}{% elif action.previous.end.dateTime %} – {{ action.previous.end.dateTime }}{% endif %}
+            </p>
+          {% endif %}
+          {% if action.resource %}
+            <p class="proposed-value"><strong>Proposed:</strong>
+              {% if action.resource.start.date %}{{ action.resource.start.date }}{% else %}{{ action.resource.start.dateTime }}{% endif %}
+              {% if action.resource.end.date %} – {{ action.resource.end.date }}{% else %} – {{ action.resource.end.dateTime }}{% endif %}
+            </p>
+            {% if action.resource.description %}<p class="change-description">{{ action.resource.description }}</p>{% endif %}
+          {% endif %}
+          <p class="muted">{{ action.reason }}</p>
+        </div>
+      </article>
+    {% empty %}
+      <div class="empty-inline"><p>No changes are required for this course.</p></div>
+    {% endfor %}
+  </section>
+  <div class="confirmation-box">
+    <div><strong>Ready to apply this exact list?</strong><p>Calendar changes are immediate. Review the list and warnings above before confirming.</p></div>
+    <form method="post" action="{% url 'sync_preview_apply' preview.id %}" class="confirm-form">
+      {% csrf_token %}
+      <label class="check-label"><input type="checkbox" name="confirm_changes" value="yes" required> I reviewed this preview and authorize only the changes listed above.</label>
+      <button type="submit" class="button button-green">Confirm and apply changes</button>
+    </form>
+  </div>
+{% else %}
+  <div class="panel">
+    <h2>This preview is {{ preview.get_status_display|lower }}.</h2>
+    <p class="muted">{% if preview.status == 'stale' %}The calendar or event data changed after this preview. Return to the course and create a fresh preview; no changes from the stale preview were applied.{% elif preview.status == 'applied' %}This preview has already been applied and cannot be reused.{% else %}The operation stopped after a partial failure. Review Google Calendar before creating another preview.{% endif %}</p>
+    <a class="button button-outline" href="{% url 'course_detail' preview.course.id %}">Back to course</a>
+  </div>
+{% endif %}
+{% endblock %}

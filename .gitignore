@@ -1,0 +1,16 @@
+.venv*/
+.python/
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.sqlite3-*
+.env
+.env.*
+!.env.example
+Syllabus_Planner_MVP_Build_Guide.md
+.DS_Store
+media/
+private_data/
+*.log
+.coverage
+htmlcov/

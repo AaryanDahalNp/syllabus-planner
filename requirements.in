@@ -1,0 +1,8 @@
+Django>=5.2,<5.3
+google-genai>=2,<3
+google-api-python-client>=2,<3
+google-auth-oauthlib>=1.2,<2
+pydantic>=2,<3
+pypdf>=6,<7
+python-dotenv>=1,<2
+tzdata

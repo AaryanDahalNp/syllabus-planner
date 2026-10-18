@@ -1,0 +1,125 @@
+{% extends "planner/base.html" %}
+{% block title %}{{ course.name }} · Syllabus Planner{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'dashboard' %}">← All courses</a>
+<section class="course-heading">
+  <div>
+    <p class="eyebrow">COURSE WORKSPACE</p>
+    <h1>{{ course.name }}</h1>
+    <p class="muted">{% if course.term_start %}{{ course.term_start|date:"M j, Y" }}{% else %}Term dates not set{% endif %}{% if course.term_end %} — {{ course.term_end|date:"M j, Y" }}{% endif %} <span class="dot-sep">·</span> {{ course.timezone }}</p>
+  </div>
+  <a class="button button-outline" href="{% url 'google_settings' %}">{% if connection %}Calendar connected ✓{% else %}Connect calendar{% endif %}</a>
+</section>
+
+<div class="workflow-banner"><span class="workflow-number">01</span><p><strong>Prepare and review</strong><span>Save syllabus text, inspect the exact extraction input, and approve only verified event drafts.</span></p><span class="workflow-divider"></span><span class="workflow-number">02</span><p><strong>Preview and confirm</strong><span>See additions, app-owned changes, removals, and overlaps before any Google write.</span></p></div>
+
+<div class="two-column">
+  <section class="panel">
+    <div class="panel-heading"><div><p class="eyebrow">SOURCE DOCUMENT</p><h2>Syllabus</h2></div><span class="step-tag">LOCAL</span></div>
+    <p class="muted small">Paste text or upload a searchable PDF (5 MiB, 30 pages max). Scanned PDFs are not supported. Your source is stored on this computer.</p>
+    <form method="post" action="{% url 'save_syllabus' course.id %}" enctype="multipart/form-data" class="stack-form">
+      {% csrf_token %}
+      <label for="syllabus-text">Paste syllabus text</label>
+      <textarea id="syllabus-text" name="text" rows="9" maxlength="60000" placeholder="Paste the syllabus here...">{% if not course.source_filename %}{{ course.syllabus_text }}{% endif %}</textarea>
+      <div class="or-divider"><span>OR UPLOAD</span></div>
+      <label class="file-label" for="syllabus-pdf">Choose PDF <input id="syllabus-pdf" type="file" name="pdf" accept="application/pdf,.pdf"></label>
+      <button class="button button-dark" type="submit">Save syllabus</button>
+    </form>
+    {% if course.syllabus_text %}
+      <details class="source-preview">
+        <summary>Review saved outbound text{% if course.source_filename %} · {{ course.source_filename }}{% endif %}</summary>
+        <pre>{{ course.syllabus_text }}</pre>
+      </details>
+      <form method="post" action="{% url 'extract_syllabus' course.id %}" class="extract-form">
+        {% csrf_token %}
+        <label for="outbound-text"><strong>Exact text for AI extraction</strong><span class="muted small">Edit or redact before sending. Remove personal details and confidential information.</span></label>
+        <textarea id="outbound-text" name="outbound_text" rows="8" maxlength="60000">{{ course.syllabus_text }}</textarea>
+        <label class="check-label"><input type="checkbox" name="consent" value="yes" required> I reviewed this text and permit sending it to the configured AI provider for event extraction.</label>
+        {% if ai_ready %}
+          <button class="button button-dark" type="submit">✳ Extract draft events</button>
+        {% else %}
+          <button class="button button-dark" type="button" disabled>AI extraction not configured</button>
+          <p class="inline-hint">AI is not configured. Set <code>AI_PROVIDER=gemini</code> and a Gemini key in your local <code>.env</code>, or add events manually.</p>
+        {% endif %}
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading"><div><p class="eyebrow">MANUAL FALLBACK</p><h2>Add an event</h2></div><span class="step-tag">DRAFT</span></div>
+    <p class="muted small">Manual entry stays available if AI is off or a date needs correction. A timed event needs a confirmed end time for Google Calendar.</p>
+    <form method="post" action="{% url 'event_create' course.id %}" class="stack-form">
+      {% csrf_token %}
+      {{ event_form.as_p }}
+      <button class="button button-dark" type="submit">Add draft event</button>
+    </form>
+  </section>
+</div>
+
+<section class="events-section">
+  <div class="section-heading">
+    <div><p class="eyebrow">HUMAN REVIEW</p><h2>Event drafts <span class="count-badge">{{ event_rows|length }}</span></h2></div>
+    {% if connection %}
+      <form method="post" action="{% url 'sync_preview_create' course.id %}">
+        {% csrf_token %}
+        <button class="button button-green" type="submit">Review calendar changes <span>→</span></button>
+      </form>
+    {% else %}
+      <a class="button button-outline" href="{% url 'google_settings' %}">Connect Google Calendar first</a>
+    {% endif %}
+  </div>
+  {% if event_rows %}
+    <div class="event-list">
+      {% for row in event_rows %}
+        <article class="event-card {% if row.event.action == 'cancel' %}event-cancel{% endif %}">
+          <div class="event-card-head">
+            <span class="kind-marker kind-{{ row.event.kind }}"></span>
+            <div class="event-title-wrap">
+              <h3>{{ row.event.title }}</h3>
+              <div class="event-meta">
+                <span class="kind-label">{{ row.event.get_kind_display }}</span>
+                {% if row.event.action == 'cancel' %}<span class="cancel-label">Cancellation signal</span>{% endif %}
+                <span>{{ row.event.start_date|date:"D, M j, Y"|default:"Date unknown" }}{% if row.event.start_time %} · {{ row.event.start_time|time:"g:i A" }}{% endif %}{% if row.event.end_time %}–{{ row.event.end_time|time:"g:i A" }}{% endif %}</span>
+                {% if row.event.source_page %}<span>Page {{ row.event.source_page }}</span>{% endif %}
+              </div>
+            </div>
+            <span class="status-pill {% if row.event.approved %}status-ready{% else %}status-draft{% endif %}"><i></i>{% if row.event.approved %}Approved{% else %}Draft{% endif %}</span>
+          </div>
+          {% if row.event.date_text %}<p class="source-phrase">Syllabus wording: “{{ row.event.date_text }}”</p>{% endif %}
+          {% if row.event.source_excerpt %}<blockquote>{{ row.event.source_excerpt }}</blockquote>{% endif %}
+          {% if row.event.blocking_issues %}
+            <div class="issue-box"><strong>Review required</strong><ul>{% for issue in row.event.blocking_issues %}<li>{{ issue }}</li>{% endfor %}</ul></div>
+          {% endif %}
+          <details class="edit-event">
+            <summary>Edit event details</summary>
+            <form method="post" action="{% url 'event_update' course.id row.event.id %}" class="stack-form">
+              {% csrf_token %}
+              {{ row.form.as_p }}
+              <button class="button button-outline" type="submit">Save edits and reset approval</button>
+            </form>
+          </details>
+          <div class="event-actions">
+            {% if not row.event.approved %}
+              <form method="post" action="{% url 'event_approve' course.id row.event.id %}">
+                {% csrf_token %}
+                {% if row.event.issues or row.event.source_changed %}<label class="check-label compact"><input type="checkbox" name="acknowledge_issues" value="yes"> I reviewed these source warnings</label>{% endif %}
+                <button class="button button-small button-green" type="submit">Approve event</button>
+              </form>
+            {% endif %}
+            {% if row.event.google_event_id %}<span class="managed-label">Managed in Google Calendar</span>{% else %}
+              <form method="post" action="{% url 'event_delete' course.id row.event.id %}">{% csrf_token %}<button class="text-button danger-text" type="submit">Delete event</button></form>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-inline"><span>✳</span><p>No event suggestions yet. Save a syllabus for AI extraction or add an event manually.</p></div>
+  {% endif %}
+</section>
+
+<section class="danger-zone">
+  <div><h3>Delete local course data</h3><p>Removes the syllabus, drafts, and local sync history. This does not delete Google Calendar events.</p></div>
+  <a class="text-link danger-text" href="{% url 'privacy_delete_course' course.id %}">Review deletion →</a>
+</section>
+{% endblock %}

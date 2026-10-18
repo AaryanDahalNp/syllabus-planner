@@ -1,0 +1,15 @@
+{% extends "planner/base.html" %}
+{% block title %}New course · Syllabus Planner{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'dashboard' %}">← All courses</a>
+<section class="form-page">
+  <p class="eyebrow">GET STARTED</p>
+  <h1>Create a course</h1>
+  <p class="muted">Set the course context first. You can add a syllabus and dates next.</p>
+  <form method="post" class="panel form-panel">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="form-actions"><button class="button button-dark" type="submit">Create course <span>→</span></button><a class="text-link" href="{% url 'dashboard' %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}
